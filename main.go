@@ -4,17 +4,31 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"time"
+
+	"github.com/ctrlCVcoder/pokedex/internal/pokeapi"
 )
+
+type config struct {
+	pokeapiClient    pokeapi.Client
+	nextLocationsURL *string
+	prevLocationsURL *string
+}
 
 type cliCommand struct {
 	name        string
 	description string
-	callback    func() error
+	callback    func(*config) error
 }
 
 var commands map[string]cliCommand
 
 func main() {
+	pokeClient := pokeapi.NewClient(5 * time.Second)
+	cfg := &config{
+		pokeapiClient: pokeClient,
+	}
+
 	commands = map[string]cliCommand{
 		"exit": {
 			name:        "exit",
@@ -25,6 +39,16 @@ func main() {
 			name:        "help",
 			description: "Displays a help message",
 			callback:    commandHelp,
+		},
+		"map": {
+			name:        "map",
+			description: "Get the next page of locations",
+			callback:    commandMap,
+		},
+		"mapb": {
+			name:        "mapb",
+			description: "Get the previous page of locations",
+			callback:    commandMapb,
 		},
 	}
 
@@ -46,7 +70,7 @@ func main() {
 
 		command, exists := commands[commandName]
 		if exists {
-			err := command.callback()
+			err := command.callback(cfg)
 			if err != nil {
 				fmt.Println(err)
 			}
@@ -56,13 +80,13 @@ func main() {
 	}
 }
 
-func commandExit() error {
+func commandExit(cfg *config) error {
 	fmt.Println("Closing the Pokedex... Goodbye!")
 	os.Exit(0)
 	return nil
 }
 
-func commandHelp() error {
+func commandHelp(cfg *config) error {
 	fmt.Println("Welcome to the Pokedex!")
 	fmt.Println("Usage:")
 	fmt.Println("")
@@ -70,5 +94,40 @@ func commandHelp() error {
 		fmt.Printf("%s: %s\n", cmd.name, cmd.description)
 	}
 	fmt.Println("")
+	return nil
+}
+
+func commandMap(cfg *config) error {
+	locationsResp, err := cfg.pokeapiClient.ListLocations(cfg.nextLocationsURL)
+	if err != nil {
+		return err
+	}
+
+	cfg.nextLocationsURL = locationsResp.Next
+	cfg.prevLocationsURL = locationsResp.Previous
+
+	for _, loc := range locationsResp.Results {
+		fmt.Println(loc.Name)
+	}
+	return nil
+}
+
+func commandMapb(cfg *config) error {
+	if cfg.prevLocationsURL == nil {
+		fmt.Println("you're on the first page")
+		return nil
+	}
+
+	locationsResp, err := cfg.pokeapiClient.ListLocations(cfg.prevLocationsURL)
+	if err != nil {
+		return err
+	}
+
+	cfg.nextLocationsURL = locationsResp.Next
+	cfg.prevLocationsURL = locationsResp.Previous
+
+	for _, loc := range locationsResp.Results {
+		fmt.Println(loc.Name)
+	}
 	return nil
 }
