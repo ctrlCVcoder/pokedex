@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"math/rand"
 	"os"
 	"time"
 
@@ -13,6 +14,7 @@ type config struct {
 	pokeapiClient    pokeapi.Client
 	nextLocationsURL *string
 	prevLocationsURL *string
+	pokedex          map[string]pokeapi.Pokemon
 }
 
 type cliCommand struct {
@@ -27,6 +29,7 @@ func main() {
 	pokeClient := pokeapi.NewClient(5*time.Second, time.Minute*5)
 	cfg := &config{
 		pokeapiClient: pokeClient,
+		pokedex:       make(map[string]pokeapi.Pokemon),
 	}
 
 	commands = map[string]cliCommand{
@@ -54,6 +57,11 @@ func main() {
 			name:        "explore",
 			description: "Explore a location area",
 			callback:    commandExplore,
+		},
+		"catch": {
+			name:        "catch",
+			description: "Catch a pokemon",
+			callback:    commandCatch,
 		},
 	}
 
@@ -158,5 +166,31 @@ func commandExplore(cfg *config, args ...string) error {
 	for _, enc := range locationArea.PokemonEncounters {
 		fmt.Println(" - " + enc.Pokemon.Name)
 	}
+	return nil
+}
+
+func commandCatch(cfg *config, args ...string) error {
+	if len(args) != 1 {
+		return fmt.Errorf("you must provide a pokemon name")
+	}
+
+	name := args[0]
+	fmt.Printf("Throwing a Pokeball at %s...\n", name)
+
+	pokemon, err := cfg.pokeapiClient.GetPokemon(name)
+	if err != nil {
+		return err
+	}
+
+	res := rand.Intn(pokemon.BaseExperience)
+
+	if res > 40 {
+		fmt.Printf("%s escaped!\n", name)
+		return nil
+	}
+
+	fmt.Printf("%s was caught!\n", name)
+	cfg.pokedex[name] = pokemon
+
 	return nil
 }
