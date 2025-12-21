@@ -68,6 +68,11 @@ func main() {
 			description: "Inspect a pokemon",
 			callback:    commandInspect,
 		},
+		"pokedex": {
+			name:        "pokedex",
+			description: "See your pokedex",
+			callback:    commandPokedex,
+		},
 	}
 
 	scanner := bufio.NewScanner(os.Stdin)
@@ -224,5 +229,13 @@ func commandInspect(cfg *config, args ...string) error {
 		fmt.Println("  -", typeInfo.Type.Name)
 	}
 
+	return nil
+}
+
+func commandPokedex(cfg *config, args ...string) error {
+	fmt.Println("Your Pokedex:")
+	for _, pokemon := range cfg.pokedex {
+		fmt.Printf(" - %s\n", pokemon.Name)
+	}
 	return nil
 }
